@@ -1,4 +1,7 @@
-﻿using RandomUserAgent;
+﻿using HtmlAgilityPack;
+using HtmlAgilityPack.CssSelectors.NetCore;
+using RandomUserAgent;
+using ScrapySharp.Network;
 using System;
 using System.IO;
 using System.Net;
@@ -11,15 +14,16 @@ namespace DripSolutions.Antibot.Akamai
   {
     static async Task Main(string[] args)
     {
-      await ZalandoSavedTest();
+      //await AkamaiTest("https://www.nike.com/login");
+      await AkamaiTest("https://www.zalando.de/damen-home/");
     }
 
-    private static async Task ZalandoTest()
+    private static async Task AkamaiTest(string url)
     {
+      Uri targetUri = new Uri(url);
+
       string proxy = GetRandomProxy();
       string userAgent = RandomUa.RandomUserAgent;
-
-      //HttpClientFactory
 
       var httpClientHandler = new HttpClientHandler();
       httpClientHandler.Proxy = new WebProxy(proxy);
@@ -27,29 +31,56 @@ namespace DripSolutions.Antibot.Akamai
       httpClientHandler.CookieContainer = new CookieContainer();
       httpClientHandler.AllowAutoRedirect = false;
       var httpClient = new HttpClient(httpClientHandler);
+
       //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Host", "https://www.zalando.de");
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("DNT", "1");
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Referrer", "https://www.google.com");
-      httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Connection", "keep-alive");
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "PostmanRuntime/7.28.0"); 
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("DNT", "1");
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Referrer", "https://www.google.com");
+      //httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Connection", "keep-alive");
       //httpClient.DefaultRequestHeaders.TryAddWithoutValidation
 
-      //var response = await httpClient.GetAsync("https://www.zalando-lounge.de");
-      //var stringResponse = await response.Content.ReadAsStringAsync();
-
-      var response = await httpClient.GetAsync("https://www.zalando.de");
+      var response = await httpClient.GetAsync(targetUri);
       var stringResponse = await response.Content.ReadAsStringAsync();
+
+      var doc = new HtmlDocument();
+      doc.LoadHtml(stringResponse);
+      var scripts = doc.DocumentNode.QuerySelectorAll("script");
+
+      if (scripts.Count == 0)
+      {
+        throw new Exception("No Scripts");
+      }
+
+      var akamaiScript = scripts[scripts.Count - 1];
+      var akamaiScriptSrc = akamaiScript.GetAttributeValue("src", "");
+
+      if (akamaiScriptSrc == "")
+      {
+        throw new Exception("Cant get Akamai Script Source");
+      }
+
+      var fullAkamaiScriptSrc = targetUri.Scheme + "://" + targetUri.Host + akamaiScriptSrc;
+
+      var responseScript = await httpClient.GetAsync(fullAkamaiScriptSrc);
+      var stringResponseScript = await responseScript.Content.ReadAsStringAsync();
+
+      var akamaiPayloadCreator = new AkamaiPayload();
+      var postRequest = akamaiPayloadCreator.CreatePayload(stringResponseScript, fullAkamaiScriptSrc, url, userAgent);
+
+      var responsePost = await httpClient.PostAsync(fullAkamaiScriptSrc, postRequest);
+      var stringResponsePost = await responsePost.Content.ReadAsStringAsync();
     }
 
-    private static async Task ZalandoSavedTest()
+    private static void ZalandoSavedTest()
     {
       var akamaiPayloadCreator = new AkamaiPayload();
 
       string userAgent = RandomUa.RandomUserAgent;
       string jsFile = ReadFile("file.js");
-      var postRequest = await akamaiPayloadCreator.CreateRequest(jsFile, "https://www.zalando.de/", userAgent);
+      var postRequest = akamaiPayloadCreator.CreatePayload(jsFile, "https://www.zalando.de/jcMTxdlJIlnmO/Hx8tKHXQft/Z3Qc/9mODwkbL/bTZxKC1lBA/dl/sPZl0UHVw", "https://www.zalando.de/", userAgent);
     }
 
     private static string ReadFile(string fileName)
@@ -73,7 +104,7 @@ namespace DripSolutions.Antibot.Akamai
       var r = new Random();
       int randomIndex = r.Next(0, proxiesSplit.Length);
 
-      return proxiesSplit[randomIndex];
+      return proxiesSplit[randomIndex].Trim();
     }
   }
 }

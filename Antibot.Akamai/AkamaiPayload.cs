@@ -14,107 +14,135 @@ namespace DripSolutions.Antibot.Akamai
   {
     private Engine _engine;
 
-    public async Task<HttpRequestMessage> CreateRequest(string jsFile, string url, string userAgent)
+    public HttpContent CreatePayload(string jsFile, string scriptSourceUrl, string targetUrl, string userAgent)
     {
-      HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-
       Dictionary<string, string> form = new Dictionary<string, string>();
-
-      var payload = await CreatePayload(jsFile, userAgent);
-
-      request.Content = new FormUrlEncodedContent(form);
-      return request;
+      form.Add("sensor_data", CreateSensorData(jsFile, scriptSourceUrl, targetUrl, userAgent));
+      return new FormUrlEncodedContent(form);
     }
 
-    private async Task<string> CreatePayload(string jsFile, string userAgent)
+    private string CreateSensorData(string jsFile, string scriptSourceUrl, string targetUrl, string userAgent)
     {
-      var payload = "";
+      var targetUri = new Uri(targetUrl);
 
       dynamic location = new ExpandoObject();
       location.hash = "";
-      location.host = "www.zalando.de";
-      location.hostname = "www.zalando.de";
-      location.href = "https://www.zalando.de/";
-      location.origin = "https://www.zalando.de";
-      location.pathname = "/";
+      location.host = targetUri.Host;
+      location.hostname = targetUri.Host;
+      location.href = targetUri.OriginalString;
+      location.origin = targetUri.Scheme + "://" + targetUri.Host;
+      location.pathname = targetUri.LocalPath;
       location.port = "";
-      location.protocol = "https:";
+      location.protocol = targetUri.Scheme + ":";
       location.search = "";
+
+      dynamic currentScript = new ExpandoObject();
+      currentScript.src = scriptSourceUrl;
+
+      dynamic documentElement = new ExpandoObject();
+      documentElement.getAttribute = new Func<string, object>(GetAttribute);
 
       dynamic document = new ExpandoObject();
       document.location = location;
       document.getElementsByTagName = new Func<string, object[]>(GetElementsByTagName);
       document.addEventListener = new Action<string, Func<JsValue, JsValue[], JsValue>>(AddEventListener);
+      document.currentScript = currentScript;
+      document.createElement = new Func<string, object>(CreateElement);
+      document.URL = targetUri.OriginalString;
+      document.documentElement = documentElement;
+
+      dynamic navigator = new ExpandoObject();
+      navigator.appCodeName = "Mozilla";
+      navigator.appName = "Netscape";
+      navigator.cookieEnabled = true;
+      navigator.deviceMemory = 8;
+      navigator.doNotTrack = "1";
+      navigator.hardwareConcurrency = 4;
+      navigator.language = "de-DE";
+      navigator.product = "Gecko";
+      navigator.productSub = "20030107";
+      navigator.userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.106 Safari/537.36";
+      navigator.vendor = "Google Inc.";
+      navigator.webdriver = false;
+
+      dynamic screenOrientation = new ExpandoObject();
+      screenOrientation.angle = 0;
+      screenOrientation.type = "landscape-primary";
+
+      dynamic screen = new ExpandoObject();
+      screen.availHeight = 1040;
+      screen.availLeft = 0;
+      screen.availTop = 0;
+      screen.availWidth = 1920;
+      screen.colorDepth = 24;
+      screen.height = 1080;
+      screen.orientation = screenOrientation;
+      screen.pixelDepth = 24;
+      screen.width = 1920;
 
       dynamic window = new ExpandoObject();
       window.location = location;
+      window.navigator = navigator;
+      window.document = document;
+      window.screen = screen;
+      window.mozInnerScreenY = 0;
+      window.innerWidth = 762;
+      window.innerHeight = 937;
+      window.outerWidth = 1920;
+      window.outerHeight = 1040;
 
-      //dynamic navigator = new ExpandoObject();
-      //navigator.appCodeName = "Mozilla";
-      //navigator.appName = "Netscape";
-      //navigator.userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.106 Safari/537.36";
+      dynamic math = new ExpandoObject();
+      math.imul = true;
+      math.hypot = true;
+      math.abs = new Func<double, double>(Math.Abs);
+      math.acos = new Func<double, double>(Math.Acos);
+      math.asin = new Func<double, double>(Math.Asin);
+      math.atanh = new Func<double, double>(Math.Atanh);
+      math.cbrt = new Func<double, double>(Math.Cbrt);
+      math.exp = new Func<double, double>(Math.Exp);
+      math.random = new Func<double>(MathRandom);
+      math.round = new Func<double, int>(MathRound);
+      math.sqrt = new Func<double, double>(Math.Sqrt);
+      math.floor = new Func<double, double>(Math.Floor);
 
-      ////var setTimeout = new Func<Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>, double, int>(__setTimeout__);
-      ////var clearTimeout = new Action<int>(__clearTimeout__);
-      ////var setInterval = new Func<Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>, double, int>(__setInterval__);
-      ////var clearInterval = new Action<int>(__clearInterval__);
+      dynamic performance = new ExpandoObject();
+      performance.now = new Func<double>(PerformanceNow);
 
-      //_engine = new Engine()
-      //  .SetValue("window", window)
-      //  .SetValue("document", document)
-      //  .SetValue("location", location)
-      //  .SetValue("navigator", navigator)
-      //  .SetValue("console", new JsConsole())
-      //  .SetValue("atob", new Func<string, string>(Atob))
-      //  .SetValue("setTimeout", new Func<Func<JsValue, JsValue[], JsValue>, object, double>(SetTimeout));
-      ////   .SetValue("setTimeout", new Func<Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>, double?, int>((f, d) => __setTimeout__(f, d != null ? d.Value: 0)))
-      //// .SetValue("clearTimeout", new Action<int>(__clearTimeout__))
-      ////.SetValue("setInterval", new Func<Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>, double?, int>((f, d) => __setInterval__(f, d != null ? d.Value : 0)))
-      //// .SetValue("clearInterval", new Action<int>(__clearInterval__));
-      ////.SetValue("setInterval", new Action<object, object>((s, t) => {
-      ////  Console.WriteLine("setInterval " + s + " " + t);
-      ////  if (s.GetType() == typeof(Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>))
-      ////  {
-      ////    var f = s as Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>;
-      ////    var res = f.Invoke(new Jint.Native.JsValue(""), new Jint.Native.JsValue[0]);
-      ////  }
-      ////}))
-      ////.SetValue("setTimeout", new Action<object, object>((s, t) => {
-      ////  Console.WriteLine("setTimeout " + s + " " + t);
-      ////  if (s.GetType() == typeof(Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>))
-      ////  {
-      ////    var f = s as Func<Jint.Native.JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>;
-
-      ////    var res = f.Invoke(new Jint.Native.JsValue(""), new Jint.Native.JsValue[0]);
-      ////  }
-      ////}))
-      ////.SetValue("clearInterval", new Action<object, object>((s, t) => {
-      ////  Console.WriteLine("clearInterval " + s + " " + t);
-      ////}));
+      dynamic json = new ExpandoObject();
+      json.parse = new Func<string, ExpandoObject>(JsonParse);
 
       _engine = new Engine()
         .SetValue("window", window)
         .SetValue("document", document)
         .SetValue("location", location)
+        .SetValue("navigator", navigator)
+        .SetValue("Math", math)
+        .SetValue("performance", performance)
+        .SetValue("JSON", json)
+        .SetValue("isFinite", new Func<double, bool>(IsFinite))
+        .SetValue("isNaN", new Func<double, bool>(IsNan))
+        .SetValue("parseFloat", new Func<string, double>(ParseFloat))
+        .SetValue("parseInt", new Func<string, int>(ParseInt))
         .SetValue("console", new JsConsole())
-        .SetValue("setInterval", new Action<object, object>((s, t) => {
-          Console.WriteLine("setInterval " + s + " " + t);
-          if (s.GetType() == typeof(Func<JsValue, Jint.Native.JsValue[], Jint.Native.JsValue>))
-          {
-            var f = s as Func<JsValue, JsValue[], JsValue>;
-            var res = f.Invoke(new JsValue(""), new JsValue[0]);
-          }
-        }))
-        .SetValue("setTimeout", new Func<Func<JsValue, JsValue[], JsValue>, object, double>(SetTimeout)); ;
+        .SetValue("setTimeout", new Func<Func<JsValue, JsValue[], JsValue>, object, double>(SetTimeout))
+        .SetValue("setInterval", new Func<Func<JsValue, JsValue[], JsValue>, object, double>(SetInterval));
 
       _engine.Execute(jsFile);
       _engine.Execute("bmak[\"bpd\"]()");
-      var o = _engine.GetValue("bmak").ToObject() as IDictionary<string, object>;
+
+      var bmak = _engine.GetValue("bmak").ToObject() as IDictionary<string, object>;
 
       object sensorData;
-      o.TryGetValue("sensor_data", out sensorData);
+      bmak.TryGetValue("sensor_data", out sensorData);
 
-      return payload;
+      if (sensorData != null && sensorData.GetType() == typeof(string))
+      {
+        return sensorData as string;
+      }
+      else
+      {
+        return null;
+      }
     }
 
     private string Atob(string baseText)
@@ -197,6 +225,78 @@ namespace DripSolutions.Antibot.Akamai
       }
 
       return 1;
+    }
+
+    private double SetInterval(Func<JsValue, JsValue[], JsValue> func, object d)
+    {
+      Console.WriteLine("setInterval " + func + " " + d);
+      return 1;
+    }
+
+    private object CreateElement(string name)
+    {
+      Console.WriteLine("createElement " + name);
+      return null;
+    }
+
+    private object GetAttribute(string name)
+    {
+      if (name == "webdriver" || name == "driver" || name == "selenium")
+      {
+        return null;
+      }
+      else
+      {
+        Console.WriteLine("getAttribute " + name);
+        return null;
+      }
+    }
+  
+    private double MathRandom()
+    {
+      var r = new Random();
+      return r.NextDouble();
+    }
+
+    private int MathRound(double value)
+    {
+      return (int)Math.Round(value, 0);
+    }
+
+    private double PerformanceNow()
+    {
+      return 2428136.1000000006;
+    }
+
+    private bool IsFinite(double value)
+    {
+      Console.WriteLine("isFinite" + value);
+      return true;
+    }
+
+    private bool IsNan(double value)
+    {
+      Console.WriteLine("isNan" + value);
+      return true;
+    }
+
+    private double ParseFloat(string value)
+    {
+      Console.WriteLine("parseFloat" + value);
+      return double.Parse(value);
+    }
+
+    private int ParseInt(string value)
+    {
+      Console.WriteLine("parseInt" + value);
+      double valueDouble = double.Parse(value);
+      return (int)Math.Round(valueDouble, 0);
+    }
+
+    private ExpandoObject JsonParse(string value)
+    {
+      Console.WriteLine("JSON.parse" + value);
+      return null;
     }
   }
 
